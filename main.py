@@ -118,3 +118,8 @@ def todays_birtdays(array):
 todays_birtdays(children_class)
 add_child(children_class)
 show_keys(children_class)
+
+
+
+# Додаткова функція:
+# додати поле з визначенням віку учня
