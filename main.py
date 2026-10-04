@@ -63,3 +63,13 @@ GDP = get_data(API_WORLD_URL, params)
 print_json(GDP, "world-bank-data.json")
 print_csv(GDP, "world-bank-data.csv")
 
+def show_csv_data(file):
+  try:
+    with open(file, "r", encoding="utf-8") as file:
+      reader = csv.reader(file)
+      for line in reader:
+        print(line)
+  except FileNotFoundError:
+    print(f"File {file} not found")
+
+show_csv_data("world-bank-data.csv")
