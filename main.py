@@ -119,3 +119,19 @@ if fileUkraine and fileComparCountry:
 
 else:
   print("Can`t found countries")
+
+
+# TASK 3: Create bar
+
+if fileComparCountry:
+  df_country = pd.read_csv(fileComparCountry, sep=";")
+  fig = px.bar(
+    df_country,
+    x="Year",
+    y="Million",
+    color="Country",
+    text="Million",
+  )
+  fig.show()
+else:
+  print("Can`t find country file.")
