@@ -71,7 +71,16 @@ while True:
     break
   else:
     print(f"Country: '{user_input}' wasn't found. Type right country.\n")
-  
+
+# TASK 4: Create pie
+while True:
+  input_year = input("Enter year for comparison: ")
+  if input_year.isdigit():
+    year_int = int(input_year)
+    if 1990 <= year_int <= 2025:
+      break
+  print(f"'{input_year}' is wrong. Type year in range between 1990 - 2025.\n")
+
 fileUkraine = get_data("ukr")
 fileComparCountry = get_data(comparCountry)
 
@@ -81,57 +90,25 @@ if fileUkraine and fileComparCountry:
 
   df_combine = pd.concat([df_fileUkraine, df_fileComparCountry], ignore_index=True)
   df_combine["Year"] = pd.to_numeric(df_combine["Year"])
+  df_filter = df_combine[df_combine["Year"] == year_int]
 
-  fig = px.line(
-    df_combine,
-    x="Year",
-    y="Million",
-    color="Country",
-    markers=True,
+  fig = px.pie(
+    df_filter,
+    names="Country",
+    values="Million",
+    title=f"Population Comparison for {year_int}",
   )
-  fig.update_traces(line=dict(width=3))
+  fig.update_traces(textinfo="percent+label", textfont_size=14)
   fig.update_layout(
     height=600,
-    xaxis_title="Years",
-    yaxis_title="Million",
-    xaxis_tickangle=-75,
-    xaxis=dict(dtick=1, range=[1990,2025]),
-    margin=dict(l=100, r=20, t=100, b=80),
     title_font_textcase="upper",
     title=dict(
-      text="Population, total",
       x=0.5,
       xanchor="center",
-      y=0.9,
-      yanchor="bottom",
       font=dict(color="#1b975a", size=18, weight="bold"),
-    ),
-    legend=dict(
-      x=0.5,
-      xanchor="center",
-      y=-0.2,
-      yanchor="top",
-      orientation="h",
-      font=dict(color="#880c77", size=16, weight="bold"),
     ),
   )
   fig.show()
 
 else:
   print("Can`t found countries")
-
-
-# TASK 3: Create bar
-
-if fileComparCountry:
-  df_country = pd.read_csv(fileComparCountry, sep=";")
-  fig = px.bar(
-    df_country,
-    x="Year",
-    y="Million",
-    color="Country",
-    text="Million",
-  )
-  fig.show()
-else:
-  print("Can`t find country file.")
