@@ -1,9 +1,7 @@
-# Одержати дані GDP per capita (current US$) для України за 1991–2019 роки. Зберегти одержані дані у форматі JSON та перетворити їх у формат CSV. Вивести на екран зміст отриманого JSON-файлу та створеного CSV-файлу.
-
 import requests
 from requests.exceptions import HTTPError, Timeout
-import json
-import csv
+import pandas as pd
+from pathlib import Path
 
 params = {
   "date": "1991:2019",
@@ -16,60 +14,63 @@ indicator = "NY.GDP.PCAP.CD"
 
 API_WORLD_URL = f"https://api.worldbank.org/v2/country/{country}/indicator/{indicator}/"
 
-def get_data(url, params = {}):
+file_name = Path(f"data_{country}.csv")
+
+def get_data(url, params ={}) :
   try:
-    response = requests.get(url, params = params, timeout=8)
+    response = requests.get(url, params=params, timeout=5)
     response.raise_for_status()
     print("Data was successfully received")
     return response.json()
-  except HTTPError as http_err:
-    print(f"HTTP error: {http_err}")
-    print(f"Error code: {response.status_code}")
-  except Timeout:
+  except HTTPError as err:
+    print(f"HTTP error: {err}")
+    print(f"HTTP error: {err.response.status_code}")
+  except Timeout: 
     print("Request timed out")
+    
+if not file_name.is_file():
+  print(f"File {file_name} not exists !")
+  recive_data = get_data(API_WORLD_URL, params)
+  if recive_data and len(recive_data) > 1:
+    data = pd.json_normalize(recive_data[1])
+    print(f"Save file {file_name}")
+    data.to_csv(file_name, index=False, sep=";")
 
-def print_json(data, file_name = "new_data.json"):
-  try:
-    with open(file_name, "w", encoding="utf-8") as file:
-      json.dump(data, file, ensure_ascii=False,  indent=4)
-      print("Data was successfully saved in JSON format")
-  except UnicodeEncodeError as e:
-    print(f"Encoding error: {e}")
+if file_name.is_file():
+  print(f"File {file_name} exists !")
+  ukr_GDP = pd.read_csv(file_name, sep=";")
+  ukr_GDP = ukr_GDP.rename(columns={"country.value": "country"})
+  ukr_GDP = ukr_GDP.reset_index(drop=True)
+  ukr_GDP["№"] = ukr_GDP.index + 1
 
-def check_value(val):
-  if isinstance(val, (int, float)):
-    return round(val, 4)
+# Copy file and filter columns to show
+  file_copy = ukr_GDP.copy(deep=True)
+  read_copy_data = pd.DataFrame(file_copy)
 
-def print_csv(data, file_name = "new_data.csv"):
-  if not data:
-    print("No data to write to CSV")
-    return
-  
-  try:
-    with open(file_name, "w", newline="", encoding="utf-8-sig") as file:
-      writer = csv.writer(file, delimiter=";")
-      writer.writerow(["Country", "Indicator", "Year", "Value"])
-      for item in data[1]:
-        if item["value"] is not None:
-          writer.writerow([item["country"]["value"], item["indicator"]["value"], item["date"], check_value(item["value"])])
-  except TypeError as e:
-    print(f"Type error: {e}")
-  except PermissionError:
-    print(f"Permission denied: Unable to write to {file_name}")
-  except UnicodeEncodeError as e:
-    print(f"Encoding error: {e}")
+# Calculate average GDP
+  aver_GDP = read_copy_data["value"].mean()
 
-GDP = get_data(API_WORLD_URL, params)
-print_json(GDP, "world-bank-data.json")
-print_csv(GDP, "world-bank-data.csv")
+# Years when GDP reduced compared to the previous year
+  read_copy_data["is_reduce"] = (read_copy_data["value"] > read_copy_data["value"].shift(-1))
 
-def show_csv_data(file):
-  try:
-    with open(file, "r", encoding="utf-8") as file:
-      reader = csv.reader(file)
-      for line in reader:
-        print(line)
-  except FileNotFoundError:
-    print(f"File {file} not found")
+# Year of the MAX / MIN of GDP
+  max_GDP = read_copy_data.loc[read_copy_data["value"].idxmax()]
+  min_GDP = read_copy_data.loc[read_copy_data["value"].idxmin()]
 
-show_csv_data("world-bank-data.csv")
+  summary_rows = pd.DataFrame([
+    {"№": ""},
+    {"№": "", "country": "Average GDP", "value": aver_GDP},
+    {"№": "", "country": f"Max GDP - {max_GDP["date"]}", "value": max_GDP["value"]},
+    {"№": "", "country": f"Min GDP - {min_GDP["date"]}", "value": min_GDP["value"]},
+  ])
+
+# Save the copy of the data with selected columns
+  columns_to_show = ["№", "country", "date", "value", "is_reduce"]
+  read_copy_data.to_csv(f"{file_name}_copy.csv", columns=columns_to_show, index=False, sep=";")
+
+# Save the result data with summary rows
+  result_data = pd.concat([read_copy_data, summary_rows], ignore_index=True)
+
+  result_data.to_csv(f"{file_name}_result.csv", columns=columns_to_show, index=False, sep=";")
+  print(f"Save file {file_name}_result.csv")
+  print(pd.read_csv(f"{file_name}_result.csv", usecols=["country", "value"], sep=";").tail(3))
